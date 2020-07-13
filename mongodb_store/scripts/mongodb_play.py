@@ -96,16 +96,13 @@ class TopicPlayer(PlayerProcess):
 
         # two threads running here, the main one does the publishing
 
-        now = rospy.get_rostime()
-
         # wait until the sim clock has been initialised
         while rospy.get_rostime().secs == 0:
             rospy.sleep(2)
 
-        if self.start_time > now:
-            self.start_time_diff = self.start_time - now
-        else:
-            self.start_time_diff = now - self.start_time
+        now = rospy.get_rostime()
+
+        self.sim_start_time = now
 
         # how many to
         buffer_size = 50
@@ -170,20 +167,20 @@ class TopicPlayer(PlayerProcess):
             try:
                 msg_time_tuple = self.to_publish.get(timeout=timeout)
                 publish_time = msg_time_tuple[1]
-                dt = publish_time - self.start_time
+                time_difference = publish_time - self.start_time
                 msg = msg_time_tuple[0]
-
                 now = rospy.get_rostime()
-                try:
-                    now_in_sim = now - self.start_time_diff
-                except TypeError:
-                    rospy.sleep(self.start_time_diff - now)
+                sim_time_difference = now - self.sim_start_time
+
+
+                #now_in_sim = now - self.start_time_diff
+
 
                 # if we've missed our window
-                if publish_time < now_in_sim:
-                    rospy.logwarn('Message out of sync by %f', (now_in_sim - publish_time).to_sec())
+                if time_difference < sim_time_difference:
+                    rospy.logwarn('Message out of sync by %f', (sim_time_difference - time_difference).to_sec())
                 else:
-                    delay = publish_time - now_in_sim
+                    delay = time_difference - sim_time_difference
                     rospy.sleep(delay)
 
                 # rospy.loginfo('diff %f' % (publish_time - rospy.get_rostime()).to_sec())
