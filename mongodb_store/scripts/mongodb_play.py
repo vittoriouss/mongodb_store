@@ -174,8 +174,10 @@ class TopicPlayer(PlayerProcess):
                 msg = msg_time_tuple[0]
 
                 now = rospy.get_rostime()
-
-                now_in_sim = now - self.start_time_diff
+                try:
+                    now_in_sim = now - self.start_time_diff
+                except TypeError:
+                    rospy.sleep(self.start_time_diff - now)
 
                 # if we've missed our window
                 if publish_time < now_in_sim:
