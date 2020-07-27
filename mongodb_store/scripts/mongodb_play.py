@@ -73,15 +73,13 @@ class PlayerProcess(object):
 
 class TopicPlayer(PlayerProcess):
     """ """
-    def __init__(self, mongodb_host, mongodb_port, db_name, collection_name, event, start_time, end_time, regex):
+    def __init__(self, mongodb_host, mongodb_port, db_name, collection_name, event, start_time, end_time):
         super(TopicPlayer, self).__init__(event, start_time, end_time)
 
         self.mongodb_host = mongodb_host
         self.mongodb_port = mongodb_port
         self.db_name = db_name
         self.collection_name = collection_name
-        self.regex_list = regex.split(':')
-        self.regex = regex
 
 
     def init(self, running):
@@ -111,16 +109,8 @@ class TopicPlayer(PlayerProcess):
         # make sure there's an index on time in the collection so the sort operation doesn't require the whole collection to be loaded
         self.collection.ensure_index(TIME_KEY)
         # get all documents within the time window, sorted ascending order by time
-        if len(self.regex) != 0 and self.regex_list[0] == self.collection_name:
-            documents = self.collection.find(
-                    { "$and": [
-                        {TIME_KEY: { '$gte': to_datetime(self.start_time), '$lte': to_datetime(self.end_time)}},
-                        {self.regex_list[1]: {'$regex': self.regex_list[2]}}
-                    ]},
-                    sort=[(TIME_KEY, pymongo.ASCENDING)])
+        documents = self.collection.find({TIME_KEY: { '$gte': to_datetime(self.start_time), '$lte': to_datetime(self.end_time)}}, sort=[(TIME_KEY, pymongo.ASCENDING)])
 
-        else:
-            documents = self.collection.find({TIME_KEY: { '$gte': to_datetime(self.start_time), '$lte': to_datetime(self.end_time)}}, sort=[(TIME_KEY, pymongo.ASCENDING)])
         if documents.count() == 0:
             rospy.logwarn('No messages to play back from topic %s' % self.collection_name)
             return
@@ -274,7 +264,7 @@ class MongoPlayback(object):
         self.stop_called = False
 
 
-    def setup(self, database_name, req_topics, start_dt, end_dt, regex):
+    def setup(self, database_name, req_topics, start_dt, end_dt):
         """ Read in details of requested playback collections. """
 
         if database_name not in self.mongo_client.database_names():
@@ -314,6 +304,7 @@ class MongoPlayback(object):
         else:
             end_time = to_ros_time(mkdatetime(end_dt))
 
+
         # we don't need a connection any more
         self.mongo_client.close()
 
@@ -328,7 +319,7 @@ class MongoPlayback(object):
         self.clock_player = ClockPlayer(self.event, start_time, end_time, pre_roll, post_roll)
 
         # create playback objects
-        self.players = map(lambda c: TopicPlayer(self.mongodb_host, self.mongodb_port, database_name, c, self.event, start_time - pre_roll, end_time + post_roll, regex), topics)
+        self.players = map(lambda c: TopicPlayer(self.mongodb_host, self.mongodb_port, database_name, c, self.event, start_time - pre_roll, end_time + post_roll), topics)
 
 
     def start(self):
@@ -381,7 +372,6 @@ def main(argv):
                       metavar="NAME", default="roslog")
     parser.add_option("-s", "--start", dest="start", type="string", default="", metavar='S', help='start datetime of query, defaults to the earliest date stored in db, across all requested collections. Formatted "d/m/y H:M" e.g. "06/07/14 06:38"')
     parser.add_option("-e", "--end", dest="end", type="string", default="", metavar='E', help='end datetime of query, defaults to the latest date stored in db, across all requested collections. Formatted "d/m/y H:M" e.g. "06/07/14 06:38"')
-    parser.add_option("-r", "--regex", dest="regex", type="string", default="", metavar='R', help='format: topic that you would like the regex to be applied to followed by :, then field in which you would like to query follow by :, then the regex e.g. "/tf:transforms[0].child_frame_id:.*base_link.*')
     (options, args) = parser.parse_args(myargv)
 
     database_name = options.mongodb_name
@@ -399,7 +389,7 @@ def main(argv):
 
 
 
-    playback.setup(database_name, topics, options.start, options.end, options.regex)
+    playback.setup(database_name, topics, options.start, options.end)
     playback.start()
     playback.join()
     rospy.set_param('use_sim_time', False)
