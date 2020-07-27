@@ -112,19 +112,12 @@ class TopicPlayer(PlayerProcess):
         self.collection.ensure_index(TIME_KEY)
         # get all documents within the time window, sorted ascending order by time
         if len(self.regex) != 0 and self.regex_list[0] == self.collection_name:
-            print("heyyyyy!!!!!")
             documents = self.collection.find(
                     { "$and": [
                         {TIME_KEY: { '$gte': to_datetime(self.start_time), '$lte': to_datetime(self.end_time)}},
                         {self.regex_list[1]: {'$regex': self.regex_list[2]}}
                     ]},
                     sort=[(TIME_KEY, pymongo.ASCENDING)])
-            print(self.collection.find(
-                { "$and": [
-                    {TIME_KEY: { '$gte': to_datetime(self.start_time), '$lte': to_datetime(self.end_time)}},
-                    {self.regex_list[1]: {'$regex': self.regex_list[2]}}
-                ]},
-                sort=[(TIME_KEY, pymongo.ASCENDING)]).explain()['executionStats'])
 
         else:
             documents = self.collection.find({TIME_KEY: { '$gte': to_datetime(self.start_time), '$lte': to_datetime(self.end_time)}}, sort=[(TIME_KEY, pymongo.ASCENDING)])
@@ -388,7 +381,7 @@ def main(argv):
                       metavar="NAME", default="roslog")
     parser.add_option("-s", "--start", dest="start", type="string", default="", metavar='S', help='start datetime of query, defaults to the earliest date stored in db, across all requested collections. Formatted "d/m/y H:M" e.g. "06/07/14 06:38"')
     parser.add_option("-e", "--end", dest="end", type="string", default="", metavar='E', help='end datetime of query, defaults to the latest date stored in db, across all requested collections. Formatted "d/m/y H:M" e.g. "06/07/14 06:38"')
-    parser.add_option("-r", "--regex", dest="regex", type="string", default="", metavar='R', help='format: topic that you would like the regex to be applied to followed by :, then field in which you would like to query follow by :, then the regex e.g. "/tf:transforms.child_frame_id:.*base_link.*')
+    parser.add_option("-r", "--regex", dest="regex", type="string", default="", metavar='R', help='format: topic that you would like the regex to be applied to followed by :, then field in which you would like to query follow by :, then the regex e.g. "/tf:transforms[0].child_frame_id:.*base_link.*')
     (options, args) = parser.parse_args(myargv)
 
     database_name = options.mongodb_name
